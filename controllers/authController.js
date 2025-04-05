@@ -114,9 +114,9 @@ exports.login = async (req, res, next) => {
     
     if (!user.isActive) return next(new ErrorResponse('Account disabled', 403));
 
-if(user.role === 'student' && user.registrationStatus !== 'verified') {
-  return next(new ErrorResponse('Registration not verified', 403));
-}
+// if(user.role === 'student' && user.registrationStatus !== 'verified') {
+//   return next(new ErrorResponse('Registration not verified', 403));
+// }
     //  if (!user.isVerified) return next(new ErrorResponse('Please verify your email', 403));
 
  
@@ -196,7 +196,7 @@ if(user.role === 'student' && user.registrationStatus !== 'verified') {
 
 exports.registerStudent = async (req, res, next) => {
   try {
-    const { firstName, lastName, email, password, dateOfBirth, gender, address } = req.body;
+    const { firstName, lastName, email, password,  } = req.body;
     
     const existingUser = await User.findOne({ email});
     if (existingUser) {
@@ -222,9 +222,6 @@ exports.registerStudent = async (req, res, next) => {
       lastName,
       email,
       password,
-      dateOfBirth,
-      gender,
-      address,
       registrationStatus: 'pending',
       user: user._id,
       studentId: `STU${Date.now().toString().slice(-6)}`
@@ -309,6 +306,47 @@ exports.verifyStudentOTP = async (req, res, next) => {
 
 
 
+
+exports.updateStudentProfile = async (req, res, next) => {
+  try {
+    const { firstName, lastName, dateOfBirth, gender, address } = req.body;
+    const studentId = req.user.id; 
+
+
+    const student = await Student.findOne({ user: studentId });
+    
+    if (!student) {
+      return next(new ErrorResponse('Student profile not found', 404));
+    }
+
+    // Update only allowed fields
+    const updates = {
+      firstName: firstName || student.firstName,
+      lastName: lastName || student.lastName,
+      dateOfBirth: dateOfBirth || student.dateOfBirth,
+      gender: gender || student.gender,
+      
+    };
+
+    // Save updates
+    const updatedStudent = await Student.findByIdAndUpdate(
+      student._id,
+      updates,
+      { new: true, runValidators: true }
+    );
+
+    res.status(200).json({
+      success: true,
+      message: 'Profile updated successfully',
+      data: updatedStudent
+    
+    
+    });
+
+  } catch (err) {
+    next(err);
+  }
+};
 
 
 

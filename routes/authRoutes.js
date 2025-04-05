@@ -6,7 +6,7 @@ const {
   getMe,
   registerStudent,
   verifyStudentOTP,
-//   resetPassword,
+  updateStudentProfile,
 //   updateDetails,
 //   updatePassword,
 //   logout
@@ -23,7 +23,7 @@ router.post('/register-student',  registerStudent);
 router.post('/verification',  verifyStudentOTP);
 router.get('/me', protect, getMe);
 // router.get('/logout', logout);
-// router.put('/updatedetails', protect, updateDetails);
+router.put('/updateStudentProfile', protect, updateStudentProfile);
 // router.put('/updatepassword', protect, updatePassword);
 // router.post('/forgotpassword', forgotPassword);
 // router.put('/resetpassword/:resettoken', resetPassword);
