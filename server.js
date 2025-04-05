@@ -40,6 +40,7 @@ app.use('/api/courses', courseRoutes);
 app.use('/api/enrollments', enrollmentRoutes);
 app.use('/api/availability', availabilityRoutes);
 
+
 // Basic route for testing
 app.get('/', (req, res) => {
   res.send('School Management System API');

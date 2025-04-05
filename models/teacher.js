@@ -2,6 +2,12 @@
 const mongoose = require('mongoose');
 
 const teacherSchema = new mongoose.Schema({
+
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true
+    },
   teacherId: {
     type: String,
     required: true,
@@ -15,17 +21,9 @@ const teacherSchema = new mongoose.Schema({
     type: String,
     required: true
   },
-  dateOfBirth: Date,
   gender: {
     type: String,
     enum: ['Male', 'Female', ]
-  },
-  address: {
-    street: String,
-    city: String,
-    state: String,
-    zipCode: String,
-    country: String
   },
   coursesTeaching: [{
     type: mongoose.Schema.Types.ObjectId,
@@ -45,6 +43,17 @@ const teacherSchema = new mongoose.Schema({
     enum: ['Active', 'Inactive', 'On Leave'],
     default: 'Active'
   }
+
+
+
 }, { timestamps: true });
+
+
+// teacherSchema.pre('save', function(next) {
+//   if (!this.teacherId) {
+//     this.teacherId = `TCH${Date.now().toString().slice(-6)}`;
+//   }
+//   next();
+// });
 
 module.exports = mongoose.model('Teacher', teacherSchema);

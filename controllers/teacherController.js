@@ -1,13 +1,12 @@
 
-
 const Teacher = require('../models/teacher');
-
+const User = require('../models/user');
 // @desc    Get all teachers
 // @route   GET /api/teachers
 // @access  Public
 exports.getTeachers = async (req, res) => {
   try {
-    const teachers = await Teacher.find().populate('subjects');
+    const teachers = await Teacher.find();
     res.status(200).json({
       success: true,
       count: teachers.length,
@@ -25,8 +24,9 @@ exports.getTeachers = async (req, res) => {
 // @route   GET /api/teachers/:id
 // @access  Public
 exports.getTeacher = async (req, res) => {
+
   try {
-    const teacher = await Teacher.findById(req.params.id).populate('subjects');
+    const teacher = await Teacher.findById(req.params.id);
 
     if (!teacher) {
       return res.status(404).json({
@@ -51,13 +51,39 @@ exports.getTeacher = async (req, res) => {
 // @route   POST /api/teachers
 // @access  Private
 exports.createTeacher = async (req, res) => {
+
   try {
-    const teacher = await Teacher.create(req.body);
+    const { firstName, lastName, email, } = req.body;
+
+    const existingTeacher = await Teacher.findOne({ email: req.body.email });
+console.log(existingTeacher);
+    if (existingTeacher) {
+      return res.status(400).json({
+      success: false,
+      error: 'Teacher with this email already exists'
+      });
+    }
+
+    const user = await User.create({
+      email: req.body.email,
+      password: "temp1234",
+      role: 'teacher',
+      // isVerified: true,
+    });
+console.log(user);
+    const teacher = await Teacher.create({
+      firstName,
+      lastName,
+      email,
+      user: user._id,
+      teacherId: `TCH${Date.now().toString().slice(-6)}`
+    });
     res.status(201).json({
       success: true,
       data: teacher
     });
   } catch (err) {
+    console.log(err);
     if (err.name === 'ValidationError') {
       const messages = Object.values(err.errors).map(val => val.message);
       return res.status(400).json({
@@ -126,11 +152,13 @@ exports.deleteTeacher = async (req, res) => {
 
     res.status(200).json({
       success: true,
+      message: 'Teacher deleted successfully',
       data: {}
     });
   } catch (err) {
     res.status(500).json({
       success: false,
+    
       error: 'Server Error'
     });
   }

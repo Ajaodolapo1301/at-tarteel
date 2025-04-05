@@ -8,7 +8,7 @@ const generateToken = require('../utils/generateToken');
 const sendTokenResponse = require('../utils/sendTokenResponse');
 const crypto = require('crypto');
 const Student = require('../models/student');
-
+const Teacher = require('../models/teacher');
 // @desc    Register superadmin (only for initial setup)
 // @route   POST /api/auth/register-superadmin
 // @access  Public (should be protected in production)
@@ -145,6 +145,7 @@ exports.login = async (req, res, next) => {
     sendTokenResponse(token, user, profile, 200, res);
 
   } catch (err) {
+    console.error(err);
     next(err);
   }
 };
