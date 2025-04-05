@@ -13,7 +13,7 @@ const sendTokenResponse = (token, user, profile, statusCode, res, message) => {
     
       .json({
         success: true,
-        token,
+       token: token || null,
         message: message || 'successful',
         data: {
           user: {

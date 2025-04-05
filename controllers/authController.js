@@ -8,8 +8,7 @@ const generateToken = require('../utils/generateToken');
 const sendTokenResponse = require('../utils/sendTokenResponse');
 const crypto = require('crypto');
 const Student = require('../models/student');
-const { console } = require('inspector');
-const { profile } = require('console');
+
 // @desc    Register superadmin (only for initial setup)
 // @route   POST /api/auth/register-superadmin
 // @access  Public (should be protected in production)
@@ -410,3 +409,133 @@ exports.getMe = async (req, res, next) => {
 };
 
 
+// @desc    Update user password
+// @route   PUT /api/auth/updatepassword
+// @access  Private
+exports.updatePassword = async (req, res, next) => {
+  try {
+    const user = await User.findById(req.user.id).select('+password');
+
+    // Check current password
+    const isMatch = await user.comparePassword(req.body.currentPassword);
+    if (!isMatch) {
+      return next(new ErrorResponse('Current password is incorrect', 401));
+    }
+
+    // Update password
+    user.password = req.body.newPassword;
+    await user.save();
+
+
+
+    res.status(200).json({
+      success: true,
+      message:  'successful',
+      data: {
+        user: {
+          id: user.id,
+          email:user.email,
+          role: user.role,
+          isVerified:user.isVerified
+        },
+  
+      }
+     
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+
+// @desc    Forgot password - OTP version
+// @route   POST /api/auth/forgotpassword
+// @access  Public
+exports.forgotPassword = async (req, res, next) => {
+  try {
+    const user = await User.findOne({ email: req.body.email });
+
+    if (!user) {
+      return next(new ErrorResponse('No user with that email', 404));
+    }
+
+    const otp = crypto.randomInt(100000, 999999).toString();
+    const otpExpires = Date.now() + 10 * 60 * 1000;
+
+
+    user.resetPasswordOtp = otp;
+    user.resetPasswordOtpExpires = otpExpires;
+    await user.save({ validateBeforeSave: false });
+
+    // Email content
+    const message = `You are receiving this email because you requested a password reset.
+    Your OTP code is: ${otp}
+    This code will expire in 10 minutes.`;
+
+    try {
+      // await sendEmail({
+      //   email: user.email,
+      //   subject: 'Password Reset OTP',
+      //   message
+      // });
+
+      res.status(200).json({ 
+        success: true, 
+        message: 'OTP sent to email',
+        // In production, you should NOT send the OTP in the response
+        // This is just for development/testing
+        otp: otp 
+      });
+
+    } catch (err) {
+      console.error(err);
+      user.resetPasswordOtp = undefined;
+      user.resetPasswordOtpExpires = undefined;
+      await user.save({ validateBeforeSave: false });
+
+      return next(new ErrorResponse('Email could not be sent', 500));
+    }
+
+  } catch (err) {
+    next(err);
+  }
+};
+
+// @desc    Reset password with OTP
+// @route   PUT /api/auth/resetpassword
+// @access  Public
+exports.resetPassword = async (req, res, next) => {
+  try {
+    const { email, otp, newPassword } = req.body;
+
+    const user = await User.findOne({
+      email,
+      resetPasswordOtp: otp,
+      resetPasswordOtpExpires: { $gt: Date.now() }
+    });
+
+    if (!user) {
+      return next(new ErrorResponse('Invalid or expired OTP', 400));
+    }
+
+    user.password = newPassword;
+    user.resetPasswordOtp = undefined;
+    user.resetPasswordOtpExpires = undefined;
+    await user.save();
+
+    // Send confirmation email
+    // await sendEmail({
+    //   email: user.email,
+    //   subject: 'Password Reset Confirmation',
+    //   message: 'Your password has been successfully reset.'
+    // });
+
+    res.status(200).json({
+      success: true,
+      message: 'Password reset successful'
+    });
+
+  } catch (err) {
+    next(err);
+  }
+};

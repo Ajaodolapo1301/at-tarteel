@@ -7,8 +7,9 @@ const {
   registerStudent,
   verifyStudentOTP,
   updateStudentProfile,
-//   updateDetails,
-//   updatePassword,
+  updatePassword,
+  forgotPassword,
+  resetPassword
 //   logout
 } = require('../controllers/authController');
 
@@ -24,9 +25,9 @@ router.post('/verification',  verifyStudentOTP);
 router.get('/me', protect, getMe);
 // router.get('/logout', logout);
 router.put('/updateStudentProfile', protect, updateStudentProfile);
-// router.put('/updatepassword', protect, updatePassword);
-// router.post('/forgotpassword', forgotPassword);
-// router.put('/resetpassword/:resettoken', resetPassword);
+router.put('/updatepassword', protect, updatePassword);
+router.post('/forgotpassword', forgotPassword);
+router.put('/resetpassword', resetPassword);
 
 
 
