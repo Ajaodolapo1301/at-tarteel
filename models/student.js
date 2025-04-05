@@ -33,11 +33,12 @@ const studentSchema = new mongoose.Schema({
   },
   dateOfBirth: {
     type: Date,
-
+    default: null
   },
   gender: {
     type: String,
-    enum: ['Male', 'Female',]
+    enum: ['Male', 'Female',],
+    default: null
   },
   registrationStatus: {
     type: String,
