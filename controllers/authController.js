@@ -311,7 +311,7 @@ exports.updateStudentProfile = async (req, res, next) => {
   try {
     const { firstName, lastName, dateOfBirth, gender, address } = req.body;
     const studentId = req.user.id; 
-
+    const user = await User.findById(req.user.id).select('-password');
 
     const student = await Student.findOne({ user: studentId });
     
@@ -329,7 +329,7 @@ exports.updateStudentProfile = async (req, res, next) => {
     };
 
     // Save updates
-    const updatedStudent = await Student.findByIdAndUpdate(
+    const profile = await Student.findByIdAndUpdate(
       student._id,
       updates,
       { new: true, runValidators: true }
@@ -338,7 +338,15 @@ exports.updateStudentProfile = async (req, res, next) => {
     res.status(200).json({
       success: true,
       message: 'Profile updated successfully',
-      data: updatedStudent
+      data: {
+        user: {
+          id: user.id,
+          email:user.email,
+          role: user.role,
+          isVerified:user.isVerified
+        },
+        profile
+      }
     
     
     });
@@ -356,38 +364,45 @@ exports.updateStudentProfile = async (req, res, next) => {
 // @route   GET /api/auth/me
 // @access  Private
 exports.getMe = async (req, res, next) => {
-  let user;
-  
+  let profile;
+  const user = await User.findById(req.user.id).select('-password');
   try {
     // Populate based on role
     switch (req.user.role) {
       case 'superadmin':
-        user = await SuperAdmin.findById(req.user.associatedId);
+        profile = await SuperAdmin.findOne({user: req.user.id});
         break;
       case 'admin':
-        user = await Admin.findById(req.user.associatedId);
+        profile = await Admin.findOne({user: req.user.id});
         break;
       case 'teacher':
-        user = await Teacher.findById(req.user.associatedId);
+        profile = await Teacher.findOne({user: req.user.id});
         break;
       case 'staff':
-        user = await Staff.findById(req.user.associatedId);
+        profile = await Staff.findOne({user: req.user.id});
         break;
       case 'student':
-        user = await Student.findById(req.user.associatedId);
+        profile = await Student.findOne({user: req.user.id});
         break;
     }
 
-    if (!user) {
+    if (!profile) {
       return next(new ErrorResponse('User profile not found', 404));
     }
 
     res.status(200).json({
       success: true,
+      message:  'successful',
       data: {
-        authInfo: req.user,
-        profile: user
+        user: {
+          id: user.id,
+          email:user.email,
+          role: user.role,
+          isVerified:user.isVerified
+        },
+        profile
       }
+     
     });
   } catch (err) {
     next(err);
