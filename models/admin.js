@@ -10,10 +10,10 @@ const adminSchema = new mongoose.Schema({
     type: String,
     required: true
   },
-  pendingApprovals: [{
-    student: { type: mongoose.Schema.Types.ObjectId, ref: 'Student' },
-    requestDate: Date
-  }],
+  // pendingApprovals: [{
+  //   student: { type: mongoose.Schema.Types.ObjectId, ref: 'Student' },
+  //   requestDate: Date
+  // }],
   user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   permissions: {
     studentManagement: Boolean,

@@ -55,24 +55,31 @@ exports.registerSuperAdmin = async (req, res, next) => {
 // @route   POST /api/auth/register-admin
 // @access  Private (SuperAdmin)
 exports.registerAdmin = async (req, res, next) => {
-  const { firstName, lastName, email, phone, password, permissions } = req.body;
+  const { firstName, lastName, email,  password, permissions } = req.body;
 
   try {
 
-    const admin = await Admin.create({
-      firstName,
-      lastName,
-      contact: { email, phone },
-      permissions
-    });
 
+    // const existingAdmin = await User.findOne({ email});
+    // if (existingAdmin) {
+    //   return next(new ErrorResponse('Admin already exists with this email', 400));
+    // }
 
     const user = await User.create({
       email,
       password,
       role: 'admin',
-      associatedId: admin._id
     });
+
+    const admin = await Admin.create({
+      firstName,
+      lastName,
+      permissions,
+      user: user._id,
+    });
+
+
+
     const token = generateToken(user._id, user.role);
     let profile;
     switch(user.role) {
@@ -107,7 +114,10 @@ exports.login = async (req, res, next) => {
     
     if (!user.isActive) return next(new ErrorResponse('Account disabled', 403));
 
-    // if (!user.isVerified) return next(new ErrorResponse('Please verify your email', 403));
+if(user.role === 'student' && user.registrationStatus !== 'verified') {
+  return next(new ErrorResponse('Registration not verified', 403));
+}
+    //  if (!user.isVerified) return next(new ErrorResponse('Please verify your email', 403));
 
  
     const token = generateToken(user._id, user.role);
@@ -124,7 +134,12 @@ exports.login = async (req, res, next) => {
       case 'teacher':
         profile = await Teacher.findOne({ user: user._id });
         break;
- 
+        case 'superadmin':
+          profile = await SuperAdmin.findOne({ user: user._id });
+          break;
+          case 'admin':
+          profile = await Admin.findOne({ user: user._id });
+          break;  
     }
 
 
