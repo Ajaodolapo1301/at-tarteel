@@ -1,6 +1,6 @@
 // routes/availabilityRoutes.js
 const express = require('express');
-const {submitAvailability, reviewAvailability, getPendingRequests, rejectAvailability ,approveAvailability} = require('../controllers/availabilityController');
+const {submitAvailability, reviewAvailability, getPendingRequests, rejectAvailability ,approveAvailability, getTeacherAvailability,setTeacherAvailability } = require('../controllers/availabilityController');
 const { protect, authorize } = require('../middleware/auth');
 
 const router = express.Router();
@@ -16,5 +16,11 @@ router.post(
     authorize('admin', 'superadmin'),
     rejectAvailability
   );
+
+
+
+  router.route('/teacher/availability')
+  .get(protect, authorize('teacher'), getTeacherAvailability)
+  .put(protect, authorize('teacher'), setTeacherAvailability);
 
 module.exports = router;

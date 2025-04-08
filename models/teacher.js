@@ -25,10 +25,24 @@ const teacherSchema = new mongoose.Schema({
     type: String,
     enum: ['Male', 'Female', ]
   },
-  coursesTeaching: [{
+
+  
+
+  courses: [{
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Course'
+    ref: 'Course',
+    // validate: {
+    //   validator: async function(courseIds) {
+    //     // Check all courses exist
+    //     const count = await mongoose.model('Course').countDocuments({ 
+    //       _id: { $in: courseIds } 
+    //     });
+    //     return count === courseIds.length;
+    //   },
+    //   message: 'One or more courses do not exist'
+    // }
   }],
+
   maxCourseLoad: {
     type: Number,
     default: 4
@@ -42,8 +56,74 @@ const teacherSchema = new mongoose.Schema({
     type: String,
     enum: ['Active', 'Inactive', 'On Leave'],
     default: 'Active'
+  },
+ availability: {
+    type: [{
+      dayOfWeek: {
+        type: String,
+        enum: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'],
+        required: true
+      },
+      timeSlots: {
+        type: [{
+          startTime: {
+            type: String,
+            required: true,
+            validate: {
+              validator: function(v) {
+                return /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(v);
+              },
+              message: props => `${props.value} is not a valid time (HH:MM 24-hour format)`
+            }
+          },
+          endTime: {
+            type: String,
+            required: true,
+            validate: {
+              validator: function(v) {
+                return /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(v);
+              },
+              message: props => `${props.value} is not a valid time (HH:MM 24-hour format)`
+            }
+          },
+          isAvailable: {
+            type: Boolean,
+            default: true
+          },
+          // Optional metadata
+          label: String,  // e.g., "Office Hours", "Class Time"
+          maxBookings: Number
+        }],
+        validate: {
+          validator: function(slots) {
+            // Validate no overlapping slots
+            const timeSlots = slots.map(s => ({
+              start: new Date(`1970-01-01T${s.startTime}:00`),
+              end: new Date(`1970-01-01T${s.endTime}:00`)
+            }));
+            
+            for (let i = 0; i < timeSlots.length; i++) {
+              for (let j = i + 1; j < timeSlots.length; j++) {
+                if (timeSlots[i].start < timeSlots[j].end && timeSlots[i].end > timeSlots[j].start) {
+                  return false;
+                }
+              }
+            }
+            return true;
+          },
+          message: 'Time slots cannot overlap'
+        }
+      }
+    }],
+    validate: {
+      validator: function(availability) {
+        // Check for duplicate days
+        const days = availability.map(a => a.dayOfWeek.toLowerCase());
+        return new Set(days).size === days.length;
+      },
+      message: 'Duplicate days in availability'
+    }
   }
-
 
 
 }, { timestamps: true });

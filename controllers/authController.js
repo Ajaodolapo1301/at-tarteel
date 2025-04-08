@@ -21,19 +21,20 @@ exports.registerSuperAdmin = async (req, res, next) => {
       return next(new ErrorResponse('Invalid master key', 401));
     }
 
-    const superAdmin = await SuperAdmin.create({
-      firstName,
-      lastName,
-      contact: { email, phone },
-      masterKey: crypto.createHash('sha256').update(masterKey).digest('hex')
-    });
-
     const user = await User.create({
       email,
       password,
       role: 'superadmin',
-      associatedId: superAdmin._id
     });
+
+    const superAdmin = await SuperAdmin.create({
+      firstName,
+      lastName,
+      user: user._id,
+      masterKey: crypto.createHash('sha256').update(masterKey).digest('hex')
+    });
+
+
 
     const token = generateToken(user._id, user.role);
 
@@ -366,6 +367,8 @@ exports.updateStudentProfile = async (req, res, next) => {
 exports.getMe = async (req, res, next) => {
   let profile;
   const user = await User.findById(req.user.id).select('-password');
+
+console.log(req.user)
   try {
     // Populate based on role
     switch (req.user.role) {
@@ -385,6 +388,7 @@ exports.getMe = async (req, res, next) => {
         profile = await Student.findOne({user: req.user.id});
         break;
     }
+    console.log(profile)
 
     if (!profile) {
       return next(new ErrorResponse('User profile not found', 404));

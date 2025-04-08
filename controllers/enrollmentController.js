@@ -4,7 +4,7 @@ const Course = require('../models/course');
 const Student = require('../models/student');
 const ErrorResponse = require('../utils/errorResponse');
 const mongoose = require('mongoose');
-
+const Teacher = require('../models/teacher');
 
 
 // @desc    Enroll student in course
@@ -232,5 +232,126 @@ exports.dropCourse = async (req, res, next) => {
     next(err);
   } finally {
     session.endSession();
+  }
+};
+
+
+
+// @desc    Set teacher's courses
+// @route   PUT /api/teachers/courses
+// @access  Private (Admin or Teacher)
+exports.setTeacherCourses = async (req, res, next) => {
+  try {
+    console.log(req.body);
+    const { courseIds } = req.body;
+    const teacherId = req.params.teacherId || req.user.id;
+
+    // Validate input
+    if (!courseIds || !Array.isArray(courseIds)) {
+      return next(new ErrorResponse('Please provide an array of course IDs', 400));
+    }
+// console.log(courseIds);
+    // Check if courses exist
+    const existingCourses = await Course.find({ _id: { $in: courseIds } });
+    console.log(`existingCourses`, existingCourses);
+    if (existingCourses.length !== courseIds.length) {
+      const missingCourses = courseIds.filter(
+        id => !existingCourses.some(c => c._id.toString() === id)
+      );
+      return next(new ErrorResponse(
+        `These courses don't exist: ${missingCourses.join(', ')}`, 
+        404
+      ));
+    }
+
+    // Find teacher
+    const teacher = await Teacher.findOne({ user: teacherId });
+    if (!teacher) {
+      return next(new ErrorResponse('Teacher not found', 404));
+    }
+
+    // // Check if teacher is qualified for these courses
+    // const unqualifiedCourses = [];
+    // for (const course of existingCourses) {
+    //   if (course.requiredQualifications && teacher.qualifications) {
+    //     const hasQualification = course.requiredQualifications.some(q =>
+    //       teacher.qualifications.includes(q)
+    //     );
+    //     if (!hasQualification) {
+    //       unqualifiedCourses.push(course.name);
+    //     }
+    //   }
+    // }
+
+    // if (unqualifiedCourses.length > 0) {
+    //   return next(new ErrorResponse(
+    //     `Teacher lacks qualifications for: ${unqualifiedCourses.join(', ')}`,
+    //     403
+    //   ));
+    // }
+
+    // Update teacher's courses
+    teacher.courses = courseIds;
+    await teacher.save();
+
+    // Update courses with this teacher
+    await Course.updateMany(
+      { _id: { $in: courseIds } },
+      { $addToSet: { teachers: teacher._id } }
+    );
+
+    // Remove teacher from courses they're no longer assigned to
+    await Course.updateMany(
+      { _id: { $nin: courseIds }, teachers: teacher._id },
+      { $pull: { teachers: teacher._id } }
+    );
+
+    res.status(200).json({
+      success: true,
+      data: teacher.courses
+    });
+
+  } catch (err) {
+    console.error(err);
+    next(err);
+  }
+};
+
+// @desc    Get teacher's courses
+// @route   GET /api/teachers/:teacherId/courses
+// @access  Public
+exports.getTeacherCourses = async (req, res, next) => {
+  try {
+    const teacher = await Teacher.findOne({ user: req.params.teacherId })
+    .populate({
+      path: 'courses',
+      select: '-__v -createdAt -updatedAt',
+      populate: [
+        {
+          path: 'subject',
+          select: 'name code department'
+        },
+        {
+          path: 'schedule',
+          select: 'dayOfWeek startTime endTime room'
+        }
+      ]
+    });
+      // .populate({
+      //   path: 'courses',
+      //   select: 'code, title, _id',
+      // });
+
+    if (!teacher) {
+      return next(new ErrorResponse('Teacher not found', 404));
+    }
+
+    res.status(200).json({
+      success: true,
+      count: teacher.courses.length,
+      data: teacher.courses
+    });
+  } catch (err) {
+    next(err);
   }
 };

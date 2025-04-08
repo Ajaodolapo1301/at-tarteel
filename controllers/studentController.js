@@ -13,8 +13,7 @@ exports.getStudents = async (req, res) => {
     .populate({
       path: 'courses',
       select: 'code title _id'
-      
-      
+  
     });
     res.status(200).json({
       success: true,

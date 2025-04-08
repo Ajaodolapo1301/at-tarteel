@@ -1,7 +1,7 @@
 // controllers/availabilityController.js
 const Student = require('../models/student');
 const ErrorResponse = require('../utils/errorResponse');
-
+const Teacher = require('../models/teacher');
 
 
 
@@ -304,3 +304,153 @@ exports.submitAvailability = async (req, res, next) => {
     // Implementation depends on your scheduling logic
     return false; // Replace with actual conflict detection
   };
+
+
+
+  // @desc    Set teacher availability with comprehensive validation
+// @route   PUT /api/teachers/availability
+// @access  Private (Teacher only)
+exports.setTeacherAvailability = async (req, res, next) => {
+  try {
+    const { availability } = req.body;
+
+    // Validate input structure
+    if (!availability || !Array.isArray(availability)) {
+      return next(new ErrorResponse('Availability must be an array', 400));
+    }
+
+    // Validate each day's structure
+    const validDays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+    const seenDays = new Set();
+    
+    for (const day of availability) {
+      // Validate day of week
+      const dayLower = day.dayOfWeek.toLowerCase();
+      if (!validDays.includes(dayLower)) {
+        return next(new ErrorResponse(`Invalid day of week: ${day.dayOfWeek}`, 400));
+      }
+
+      // Check for duplicate days
+      if (seenDays.has(dayLower)) {
+        return next(new ErrorResponse(`Duplicate entry for ${day.dayOfWeek}`, 400));
+      }
+      seenDays.add(dayLower);
+
+      // Validate time slots
+      if (!Array.isArray(day.timeSlots)) {
+        return next(new ErrorResponse(`Time slots must be an array for ${day.dayOfWeek}`, 400));
+      }
+
+      if (day.timeSlots.length === 0) {
+        return next(new ErrorResponse(`At least one time slot required for ${day.dayOfWeek}`, 400));
+      }
+
+      // Validate each time slot
+      for (const [index, slot] of day.timeSlots.entries()) {
+        // Required fields check
+        if (slot.startTime === undefined || slot.endTime === undefined || slot.isAvailable === undefined) {
+          return next(new ErrorResponse(
+            `Slot ${index + 1} on ${day.dayOfWeek} requires startTime, endTime and isAvailable`,
+            400
+          ));
+        }
+
+        // Time format validation
+        const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
+        if (!timeRegex.test(slot.startTime) || !timeRegex.test(slot.endTime)) {
+          return next(new ErrorResponse(
+            `Slot ${index + 1} on ${day.dayOfWeek}: Time must be in HH:MM format (24-hour)`,
+            400
+          ));
+        }
+
+        // Time validation
+        const start = new Date(`1970-01-01T${slot.startTime}:00`);
+        const end = new Date(`1970-01-01T${slot.endTime}:00`);
+        
+        // End time after start time
+        if (end <= start) {
+          return next(new ErrorResponse(
+            `Slot ${index + 1} on ${day.dayOfWeek}: End time must be after start time`,
+            400
+          ));
+        }
+
+        // Minimum slot duration (30 minutes)
+        const duration = (end - start) / 60000; // in minutes
+        if (duration < 45) {
+          return next(new ErrorResponse(
+            `Slot ${index + 1} on ${day.dayOfWeek}: Minimum slot duration is 45 minutes`,
+            400
+          ));
+        }
+
+        // Slot doesn't cross midnight
+        if (end.getDate() !== start.getDate()) {
+          return next(new ErrorResponse(
+            `Slot ${index + 1} on ${day.dayOfWeek}: Time slots cannot cross midnight`,
+            400
+          ));
+        }
+      }
+
+      // Check for overlapping slots within the same day
+      const slots = day.timeSlots.map(s => ({
+        start: new Date(`1970-01-01T${s.startTime}:00`),
+        end: new Date(`1970-01-01T${s.endTime}:00`)
+      }));
+
+      for (let i = 0; i < slots.length; i++) {
+        for (let j = i + 1; j < slots.length; j++) {
+          if (slots[i].start < slots[j].end && slots[i].end > slots[j].start) {
+            return next(new ErrorResponse(
+              `Overlapping time slots detected on ${day.dayOfWeek} between ${day.timeSlots[i].startTime}-${day.timeSlots[i].endTime} and ${day.timeSlots[j].startTime}-${day.timeSlots[j].endTime}`,
+              400
+            ));
+          }
+        }
+      }
+    }
+
+    // Find and update teacher profile
+    const teacher = await Teacher.findOneAndUpdate(
+      { user: req.user.id },
+      { availability },
+      { new: true, runValidators: true }
+    );
+
+    if (!teacher) {
+      return next(new ErrorResponse('Teacher profile not found', 404));
+    }
+
+    res.status(200).json({
+      success: true,
+      data: teacher.availability
+    });
+
+  } catch (err) {
+    console.error(err);
+    next(err);
+  }
+};
+
+// @desc    Get teacher availability
+// @route   GET /api/teachers/availability
+// @access  Private (Teacher only)
+exports.getTeacherAvailability = async (req, res, next) => {
+  try {
+    const teacher = await Teacher.findOne({ user: req.user.id })
+      .select('availability');
+    
+    if (!teacher) {
+      return next(new ErrorResponse('Teacher profile not found', 404));
+    }
+
+    res.status(200).json({
+      success: true,
+      data: teacher.availability || []
+    });
+  } catch (err) {
+    next(err);
+  }
+};
