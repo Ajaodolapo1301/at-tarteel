@@ -388,7 +388,6 @@ console.log(req.user)
         profile = await Student.findOne({user: req.user.id});
         break;
     }
-    console.log(profile)
 
     if (!profile) {
       return next(new ErrorResponse('User profile not found', 404));

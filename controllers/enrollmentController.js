@@ -93,64 +93,147 @@ const useTransactions = process.env.NODE_ENV === 'production';
 
 exports.enrollStudent = async (req, res, next) => {
   const session = useTransactions ? await mongoose.startSession() : null;
-  if (session) session.startTransaction();
   
   try {
+    if (session) session.startTransaction();
+    
     const { courseId } = req.body;
+    const userId = req.user.id;
 
-    // Check if course exists
-    const course = await Course.findById(courseId);
+    // Validate course exists
+    const course = await Course.findById(courseId).session(session || null);
     if (!course) {
       throw new ErrorResponse('Course not found', 404);
     }
-    const userId = req.user.id;
 
-    // Find student (with session if using transactions)
-    const student = await Student.findOne({ user: userId })
-      .session(useTransactions ? session : null);
-    console.log(student);
+    // Check if student exists
+    const student = await Student.findOne({ user: userId }).session(session || null);
+    if (!student) {
+      throw new ErrorResponse('Student profile not found', 404);
+    }
+
+
+
     // Check enrollment limit
     const activeEnrollments = await Enrollment.countDocuments({
       student: student._id,
       status: 'active'
-    }).session(useTransactions ? session : null);
+    }).session(session || null);
 
     if (activeEnrollments >= 2) {
       throw new ErrorResponse('Maximum enrollment limit reached (2 courses)', 400);
     }
 
-    // Create enrollment
-    const enrollment = await Enrollment.create(
-      useTransactions 
-        ? [{ student: student._id, course: courseId }, { session }]
-        : { student: student._id, course: courseId }
-    );
+    // Check if already enrolled
+    const existingEnrollment = await Enrollment.findOne({
+      student: student._id,
+      course: courseId
+    }).session(session || null);
 
-    // Update course and student
+    if (existingEnrollment) {
+      throw new ErrorResponse('Already enrolled in this course', 400);
+    }
+
+    // Create enrollment
+    const enrollment = await Enrollment.create([{
+      student: student._id,
+      course: courseId,
+      status: 'active',
+      enrolledAt: new Date()
+    }], { session: session || undefined });
+
+    // Update course's enrolled students
     await Course.findByIdAndUpdate(
       courseId,
-      { $push: { enrolledStudents: student._id } },
-      useTransactions ? { session } : {}
+      { $addToSet: { enrolledStudents: student._id } },
+      { session: session || undefined, new: true }
     );
 
+    // Update student's courses
     await Student.findByIdAndUpdate(
       student._id,
-      { $push: { courses: courseId } },
-      useTransactions ? { session } : {}
+      { $addToSet: { courses: courseId } },
+      { session: session || undefined, new: true }
     );
 
-    if (useTransactions) await session.commitTransaction();
-    res.status(201).json({ success: true, data: useTransactions ? enrollment[0] : enrollment });
+    if (session) await session.commitTransaction();
+    
+    res.status(201).json({ 
+      success: true, 
+      data: useTransactions ? enrollment[0] : enrollment 
+    });
 
   } catch (err) {
-    if (useTransactions) {
+    if (session) {
       await session.abortTransaction();
     }
     next(err);
   } finally {
-    if (useTransactions) session.endSession();
+    if (session) {
+      session.endSession();
+    }
   }
 };
+
+
+// const useTransactions = process.env.NODE_ENV === 'production';
+
+// exports.enrollStudent = async (req, res, next) => {
+//   const session = useTransactions ? await mongoose.startSession() : null;
+//   if (session) session.startTransaction();
+  
+//   try {
+//     const { courseId } = req.body;
+
+
+//     const course = await Course.findById(courseId);
+//     if (!course) {
+//       throw new ErrorResponse('Course not found', 404);
+//     }
+//     const userId = req.user.id;
+
+//     const student = await Student.findOne({ user: userId })
+//       .session(useTransactions ? session : null);
+//     console.log(student);
+//     const activeEnrollments = await Enrollment.countDocuments({
+//       student: student._id,
+//       status: 'active'
+//     }).session(useTransactions ? session : null);
+
+//     if (activeEnrollments >= 2) {
+//       throw new ErrorResponse('Maximum enrollment limit reached (2 courses)', 400);
+//     }
+
+//     const enrollment = await Enrollment.create(
+//       useTransactions 
+//         ? [{ student: student._id, course: courseId }, { session }]
+//         : { student: student._id, course: courseId }
+//     );
+
+//     await Course.findByIdAndUpdate(
+//       courseId,
+//       { $push: { enrolledStudents: student._id } },
+//       useTransactions ? { session } : {}
+//     );
+
+//     await Student.findByIdAndUpdate(
+//       student._id,
+//       { $push: { courses: courseId } },
+//       useTransactions ? { session } : {}
+//     );
+
+//     if (useTransactions) await session.commitTransaction();
+//     res.status(201).json({ success: true, data: useTransactions ? enrollment[0] : enrollment });
+
+//   } catch (err) {
+//     if (useTransactions) {
+//       await session.abortTransaction();
+//     }
+//     next(err);
+//   } finally {
+//     if (useTransactions) session.endSession();
+//   }
+// };
 // @desc    Get student's enrolled courses
 // @route   GET /api/students/me/courses
 // @access  Private (Student)

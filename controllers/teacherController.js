@@ -6,7 +6,10 @@ const User = require('../models/user');
 // @access  Public
 exports.getTeachers = async (req, res) => {
   try {
-    const teachers = await Teacher.find();
+    const teachers = await Teacher.find().populate(
+      "user",
+      "email role _id"
+    )  ;
     res.status(200).json({
       success: true,
       count: teachers.length,
@@ -66,9 +69,8 @@ console.log(existingTeacher);
 
     const user = await User.create({
       email: req.body.email,
-      password: "temp1234",
+      password: firstName,
       role: 'teacher',
-      // isVerified: true,
     });
 console.log(user);
     const teacher = await Teacher.create({
