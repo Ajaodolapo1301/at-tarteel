@@ -242,7 +242,7 @@ exports.getMyCourses = async (req, res, next) => {
     const student = await Student.findOne({ user: req.user.id })
       .populate({
         path: 'courses',
-        select: 'code title, _id',
+        select: 'code title _id',
       });
     
     if (!student) {

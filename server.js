@@ -16,6 +16,8 @@ const authRoutes = require('./routes/authRoutes');
 const courseRoutes = require('./routes/courseRoutes');
 const enrollmentRoutes = require('./routes/enrollmentRoutes');
 const availabilityRoutes = require('./routes/availabilityRoutes');
+const adminRoutes = require('./routes/adminRoutes');
+
 
 
 const app = express();
@@ -39,6 +41,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/courses', courseRoutes);
 app.use('/api/enrollments', enrollmentRoutes);
 app.use('/api/availability', availabilityRoutes);
+app.use('/api/admin', adminRoutes);
 
 
 // Basic route for testing

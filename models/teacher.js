@@ -31,16 +31,7 @@ const teacherSchema = new mongoose.Schema({
   courses: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Course',
-    // validate: {
-    //   validator: async function(courseIds) {
-    //     // Check all courses exist
-    //     const count = await mongoose.model('Course').countDocuments({ 
-    //       _id: { $in: courseIds } 
-    //     });
-    //     return count === courseIds.length;
-    //   },
-    //   message: 'One or more courses do not exist'
-    // }
+ 
   }],
 
   maxCourseLoad: {

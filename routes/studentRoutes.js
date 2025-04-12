@@ -18,10 +18,10 @@ const router = express.Router();
 // Protected routes
 router.use(protect);
 
-router.get('/', authorize('admin', 'teacher'), getStudents);
-router.get('/:id', authorize('admin', 'teacher'), getStudent);
-router.put('/:id', authorize('admin'), updateStudent);
-router.delete('/:id', authorize('admin'), deleteStudent);
-router.put('/:id/approve', authorize('admin'), approveRegistration);
+router.get('/', authorize('admin', 'teacher', 'superadmin'), getStudents);
+router.get('/:id', authorize('admin', 'teacher', 'superadmin'), getStudent);
+router.put('/:id', authorize('admin','superadmin'), updateStudent);
+router.delete('/:id', authorize('admin','superadmin'), deleteStudent);
+router.put('/:id/approve', authorize('admin', 'superadmin'), approveRegistration);
 
 module.exports = router;

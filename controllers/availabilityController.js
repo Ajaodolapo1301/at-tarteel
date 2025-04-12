@@ -454,3 +454,78 @@ exports.getTeacherAvailability = async (req, res, next) => {
     next(err);
   }
 };
+
+// @desc    Get recommended teachers based on availability
+// @route   GET /api/teachers/recommended
+// @access  Private (Student)
+exports.getRecommendedTeachers = async (req, res, next) => {
+  try {
+    const studentId = req.user.id;
+
+    // 1. Get student's available time slots
+    const student = await Student.findOne({ user: studentId }).select('availableSlots');
+    if (!student) {
+      return next(new ErrorResponse('Student profile not found', 404));
+    }
+
+    // 2. Find matching teachers
+    const teachers = await Teacher.aggregate([
+      { $unwind: "$availability" },
+      { $unwind: "$availability.slots" },
+      { $match: {
+        "availability.slots.isAvailable": true,
+        $or: student.availableSlots.map(slot => ({
+          "availability.day": slot.day,
+          "availability.slots.startTime": { $lte: slot.endTime },
+          "availability.slots.endTime": { $gte: slot.startTime }
+        }))
+      }},
+      { $group: {
+        _id: "$_id",
+        user: { $first: "$user" },
+        name: { $first: { $concat: ["$firstName", " ", "$lastName"] } },
+        matchScore: { $sum: 1 },
+        matchingSlots: {
+          $push: {
+            day: "$availability.day",
+            startTime: "$availability.slots.startTime",
+            endTime: "$availability.slots.endTime"
+          }
+        }
+      }},
+      { $sort: { matchScore: -1 } },
+      { $limit: 10 },
+      { $lookup: {
+        from: 'users',
+        localField: 'user',
+        foreignField: '_id',
+        as: 'userDetails'
+      }},
+      { $unwind: "$userDetails" },
+      { $project: {
+        _id: 1,
+        name: 1,
+        email: "$userDetails.email",
+        profilePhoto: "$userDetails.profilePhoto",
+        subjects: 1,
+        matchScore: 1,
+        matchingSlots: 1,
+        availabilityMatchPercentage: {
+          $multiply: [
+            { $divide: ["$matchScore", { $size: student.availableSlots }] },
+            100
+          ]
+        }
+      }}
+    ]);
+
+    res.status(200).json({
+      success: true,
+      count: teachers.length,
+      data: teachers
+    });
+
+  } catch (err) {
+    next(err);
+  }
+};
