@@ -6,7 +6,8 @@ const {
   createCourse,
   updateCourse,
   deleteCourse,
-  searchCourses
+  searchCourses,
+  updateProgressCourse
 } = require('../controllers/courseController');
 const { protect, authorize } = require('../middleware/auth');
 
@@ -26,5 +27,6 @@ router.use(authorize('admin', 'superadmin'));
 router.post('/', createCourse);
 router.put('/:id', updateCourse);
 router.delete('/:id', deleteCourse);
+router.put('/:courseId/students/:studentId/progress', updateProgressCourse);
 
 module.exports = router;

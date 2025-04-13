@@ -2,7 +2,7 @@
 const Student = require('../models/student');
 const ErrorResponse = require('../utils/errorResponse');
 const Teacher = require('../models/teacher');
-
+const Admin = require('../models/admin');
 
 
 exports.submitAvailability = async (req, res, next) => {

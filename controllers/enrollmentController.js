@@ -234,6 +234,10 @@ exports.enrollStudent = async (req, res, next) => {
 //     if (useTransactions) session.endSession();
 //   }
 // };
+
+
+
+
 // @desc    Get student's enrolled courses
 // @route   GET /api/students/me/courses
 // @access  Private (Student)
@@ -258,6 +262,38 @@ exports.getMyCourses = async (req, res, next) => {
     next(err);
   }
 };
+
+
+
+
+
+exports.getMySingleCourses = async (req, res, next) => {
+  try {
+    const student = await Student.findOne({ user: req.user.id })
+      .populate({
+        path: 'courses',
+        select: 'code title _id',
+      });
+    
+    if (!student) {
+      return next(new ErrorResponse('Student profile not found', 404));
+    }
+
+    res.status(200).json({
+      success: true,
+      count: student.courses.length,
+      data: student.courses
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+
+
+
+
+
 
 // @desc    Drop a course
 // @route   DELETE /api/enrollments/:courseId

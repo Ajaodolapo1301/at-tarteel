@@ -1,6 +1,8 @@
 
 const Course = require('../models/course');
 const ErrorResponse = require('../utils/errorResponse');
+const Student = require('../models/student');
+const user = require('../models/user');
 
 // @desc    Get all courses
 // @route   GET /api/courses
@@ -81,7 +83,7 @@ exports.getCourses = async (req, res, next) => {
 // @access  Public
 exports.getCourse = async (req, res, next) => {
   try {
-    const course = await Course.findById(req.params.id)
+    const course = await Course.findById(req.params.id).populate('enrolledStudents', 'firstName lastName email')
       // .populate('teacher', 'firstName lastName email')
       // .populate('prerequisites', 'courseCode title');
     
@@ -125,6 +127,56 @@ exports.createCourse = async (req, res, next) => {
 // @desc    Update course
 // @route   PUT /api/courses/:id
 // @access  Private/Admin
+exports.updateProgressCourse = async (req, res, next) => {
+  const { courseId, studentId } = req.params;
+  const { progress } = req.body;
+  console.log(req.params);
+  // Validate input
+  if (!studentId) {
+    return next(new ErrorResponse('Student ID is required', 400));
+  }
+
+  if (!progress || isNaN(progress)){
+    return next(new ErrorResponse('Valid progress value is required', 400));
+  }
+
+  try {
+    // Find course
+    const course = await Course.findById(courseId);
+    if (!course) {
+      return next(new ErrorResponse(`Course not found with id ${courseId}`, 404));
+    }
+
+    // Check if student exists
+    const studentExists = await Student.exists({ _id: studentId });
+    if (!studentExists) {
+      return next(new ErrorResponse(`Student not found with id ${studentId}`, 404));
+    }
+
+
+    console.log(studentExists);
+    // Update progress
+    const updatedEnrollment = await course.updateStudentProgress(studentId, Number(progress));
+    
+    res.status(200).json({
+      success: true,
+      data: {
+        courseId: course._id,
+        studentId,
+        progress: updatedEnrollment.progress,
+        completed: updatedEnrollment.completed,
+        lastAccessed: updatedEnrollment.lastAccessed
+      }
+    });
+
+  } catch (err) {
+    if (err.message.includes('not enrolled')) {
+      return next(new ErrorResponse(err.message, 400));
+    }
+    console.error(err);
+    next(err);
+  }
+};
 exports.updateCourse = async (req, res, next) => {
   try {
     let course = await Course.findById(req.params.id);
@@ -153,6 +205,9 @@ exports.updateCourse = async (req, res, next) => {
     next(err);
   }
 };
+
+
+
 
 // @desc    Delete course
 // @route   DELETE /api/courses/:id
